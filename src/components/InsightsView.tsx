@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -7,19 +7,20 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Dimensions,
   ScrollView,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
 import {deleteAnxietyEntry, AnxietyEntry} from '../services/storageService';
 import {LineChart} from 'react-native-chart-kit';
+import {COLORS} from '../theme/colors';
 
 interface InsightsViewProps {
   entries: AnxietyEntry[];
   onRefresh: () => Promise<void>;
 }
 
-export const InsightsView: React.FC<InsightsViewProps> = ({entries, onRefresh}) => {
+const InsightsView: React.FC<InsightsViewProps> = ({entries, onRefresh}) => {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -59,80 +60,63 @@ export const InsightsView: React.FC<InsightsViewProps> = ({entries, onRefresh}) 
   };
 
   const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatShortDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      month: 'numeric',
-      day: 'numeric',
-    });
+    const date = new Date(timestamp);
+    return date.toLocaleString();
   };
 
   const getLevelColor = (level: number) => {
-    if (level <= 1) return '#4CAF50'; // Green
-    if (level <= 2.5) return '#FFC107'; // Yellow
-    if (level <= 4) return '#FF9800'; // Orange
-    return '#F44336'; // Red
-  };
-
-  // Prepare chart data
-  const prepareChartData = () => {
-    if (entries.length < 1) {
-      // Default data if there are no entries
-      return {
-        labels: [''],
-        datasets: [
-          {
-            data: [0],
-            color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
-            strokeWidth: 2,
-          },
-        ],
-      };
-    }
-
-    // Sort entries by timestamp (oldest first)
-    const sortedEntries = [...entries].sort((a, b) => a.timestamp - b.timestamp);
-    
-    // Take only the last 7 entries (or fewer if we don't have 7)
-    const recentEntries = sortedEntries.slice(-7);
-    
-    return {
-      labels: recentEntries.map(entry => formatShortDate(entry.timestamp)),
-      datasets: [
-        {
-          data: recentEntries.map(entry => entry.level),
-          color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
-          strokeWidth: 2,
-        },
-      ],
-    };
+    if (level <= 1) return COLORS.teal;     // Calm
+    if (level <= 2.5) return COLORS.blue;   // Mild
+    if (level <= 4) return COLORS.orange;   // Moderate
+    return COLORS.red;                      // Severe
   };
 
   const chartConfig = {
-    backgroundGradientFrom: '#ffffff',
-    backgroundGradientTo: '#ffffff',
+    backgroundGradientFrom: COLORS.navy,
+    backgroundGradientTo: COLORS.navy,
     decimalPlaces: 1,
-    color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    color: (opacity = 1) => `rgba(90, 175, 176, ${opacity})`, // COLORS.teal
+    labelColor: (opacity = 1) => `rgba(242, 208, 164, ${opacity})`, // COLORS.cream
     style: {
       borderRadius: 16,
     },
     propsForDots: {
       r: '6',
       strokeWidth: '2',
-      stroke: '#4A90E2',
+      stroke: COLORS.blue,
     },
   };
 
+  // Prepare data for chart if we have entries
+  const prepareChartData = () => {
+    if (entries.length < 2) return null;
+
+    // Sort entries by timestamp
+    const sortedEntries = [...entries].sort((a, b) => a.timestamp - b.timestamp);
+    
+    // Take up to the last 7 entries
+    const recentEntries = sortedEntries.slice(-7);
+    
+    // Format data for the chart
+    return {
+      labels: recentEntries.map(entry => {
+        const date = new Date(entry.timestamp);
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+      }),
+      datasets: [
+        {
+          data: recentEntries.map(entry => entry.level),
+          color: (opacity = 1) => `rgba(90, 175, 176, ${opacity})`, // COLORS.teal
+          strokeWidth: 2,
+        },
+      ],
+    };
+  };
+
+  const chartData = prepareChartData();
+
   const renderItem = ({item}: {item: AnxietyEntry}) => (
-    <View style={styles.entryCard} key={item.id}>
+    <View style={styles.entryCard}>
       <View style={styles.entryHeader}>
         <View style={[styles.levelBadge, {backgroundColor: getLevelColor(item.level)}]}>
           <Text style={styles.levelText}>{item.level.toFixed(1)}</Text>
@@ -163,7 +147,7 @@ export const InsightsView: React.FC<InsightsViewProps> = ({entries, onRefresh}) 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4A90E2" />
+        <ActivityIndicator size="large" color={COLORS.teal} />
         <Text style={styles.loadingText}>Loading entries...</Text>
       </View>
     );
@@ -171,47 +155,47 @@ export const InsightsView: React.FC<InsightsViewProps> = ({entries, onRefresh}) 
 
   return (
     <View style={styles.container}>
-      <ScrollView 
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-      >
-        <Text style={styles.title}>Your Anxiety History</Text>
-        
-        {entries.length >= 2 ? (
-          <View style={styles.chartContainer}>
-            <Text style={styles.chartTitle}>Anxiety Levels Over Time</Text>
-            <LineChart
-              data={prepareChartData()}
-              width={Dimensions.get('window').width - 32}
-              height={220}
-              chartConfig={chartConfig}
-              bezier
-              style={styles.chart}
-            />
-          </View>
-        ) : entries.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No anxiety entries yet</Text>
-            <Text style={styles.emptySubtext}>
-              Your recorded anxiety levels will appear here
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.chartPlaceholder}>
-            <Text style={styles.chartPlaceholderText}>
-              Add more entries to see your anxiety trend chart
-            </Text>
-          </View>
-        )}
-        
-        {entries.length > 0 && (
-          <View style={styles.entriesContainer}>
-            <Text style={styles.sectionTitle}>All Entries</Text>
-            {entries.map(item => renderItem({item}))}
-          </View>
-        )}
-      </ScrollView>
+      <Text style={styles.title}>Your Anxiety History</Text>
+      
+      {chartData && (
+        <View style={styles.chartContainer}>
+          <Text style={styles.chartTitle}>Recent Anxiety Levels</Text>
+          <LineChart
+            data={chartData}
+            width={Dimensions.get('window').width - 40}
+            height={180}
+            chartConfig={chartConfig}
+            bezier
+            style={styles.chart}
+          />
+        </View>
+      )}
+      
+      {entries.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No anxiety entries yet</Text>
+          <Text style={styles.emptySubtext}>
+            Your recorded anxiety levels will appear here
+          </Text>
+        </View>
+      ) : (
+        <>
+          <Text style={styles.sectionTitle}>Your Entries</Text>
+          <FlatList
+            data={entries.sort((a, b) => b.timestamp - a.timestamp)} // Sort newest first
+            renderItem={renderItem}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl 
+                refreshing={refreshing} 
+                onRefresh={handleRefresh}
+                tintColor={COLORS.teal} 
+              />
+            }
+          />
+        </>
+      )}
     </View>
   );
 };
@@ -219,82 +203,87 @@ export const InsightsView: React.FC<InsightsViewProps> = ({entries, onRefresh}) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.darkBg,
     padding: 16,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: COLORS.lightText,
     marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
   },
   listContent: {
     paddingBottom: 20,
   },
   entryCard: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 2,
+    borderColor: COLORS.border,
   },
   entryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   levelBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.cream,
   },
   levelText: {
-    color: 'white',
+    color: COLORS.lightText,
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 18,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: {width: 1, height: 1},
+    textShadowRadius: 1,
   },
   dateText: {
-    color: '#666',
+    color: COLORS.cream,
     fontSize: 14,
   },
   categoryContainer: {
     flexDirection: 'row',
     marginBottom: 8,
-    alignItems: 'center',
   },
   categoryLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#555',
-    marginRight: 6,
+    fontWeight: '600',
+    marginRight: 4,
+    color: COLORS.teal,
   },
   categoryText: {
-    fontSize: 14,
-    color: '#555',
+    color: COLORS.lightText,
   },
   notesText: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 12,
+    color: COLORS.lightText,
+    marginTop: 8,
+    marginBottom: 16,
   },
   deleteButton: {
     alignSelf: 'flex-end',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#FF5252',
-    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: COLORS.red,
+    borderWidth: 1,
+    borderColor: COLORS.cream,
   },
   deleteButtonText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
+    color: COLORS.lightText,
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -303,69 +292,72 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
+    color: COLORS.cream,
     fontSize: 16,
-    color: '#666',
   },
   emptyContainer: {
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
-    marginTop: 32,
+    alignItems: 'center',
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#666',
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.teal,
+    marginBottom: 8,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 8,
+    fontSize: 16,
+    color: COLORS.cream,
     textAlign: 'center',
   },
   chartContainer: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 2,
+    borderColor: COLORS.border,
   },
   chartTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    color: COLORS.lightText,
+    marginBottom: 12,
     textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   chart: {
     marginVertical: 8,
     borderRadius: 12,
   },
   chartPlaceholder: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
     alignItems: 'center',
     justifyContent: 'center',
     height: 150,
+    borderWidth: 2,
+    borderColor: COLORS.border,
   },
   chartPlaceholderText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 16,
+    color: COLORS.cream,
     textAlign: 'center',
   },
-  entriesContainer: {
-    marginTop: 8,
-  },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: COLORS.teal,
     marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });
 

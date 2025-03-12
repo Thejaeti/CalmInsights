@@ -10,20 +10,13 @@ import {NavigationContainer} from '@react-navigation/native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {SafeAreaView, StyleSheet, Text, View} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {AnxietyTracker} from './src/components/AnxietyTracker';
-import {InsightsView} from './src/components/InsightsView';
+import AnxietyTracker from './src/components/AnxietyTracker';
+import InsightsView from './src/components/InsightsView';
 import {getAnxietyEntries, AnxietyEntry} from './src/services/storageService';
+import {AppContext} from './src/context/AppContext';
+import {COLORS} from './src/theme/colors';
 
 const Tab = createBottomTabNavigator();
-
-// Create a context to share data between tabs
-export const AppContext = React.createContext<{
-  entries: AnxietyEntry[];
-  refreshEntries: () => Promise<void>;
-}>({
-  entries: [],
-  refreshEntries: async () => {},
-});
 
 function App(): React.JSX.Element {
   const [entries, setEntries] = useState<AnxietyEntry[]>([]);
@@ -57,7 +50,7 @@ function App(): React.JSX.Element {
     <SafeAreaView style={styles.screen}>
       <View style={styles.container}>
         <Text style={styles.title}>Settings</Text>
-        <Text style={styles.subtitle}>Coming soon: App preferences and notifications</Text>
+        <Text style={styles.subtitle}>Coming soon: Customize your experience</Text>
       </View>
     </SafeAreaView>
   );
@@ -78,10 +71,18 @@ function App(): React.JSX.Element {
               }
               return <Icon name={iconName} size={size} color={color} />;
             },
-            tabBarActiveTintColor: '#4A90E2',
-            tabBarInactiveTintColor: 'gray',
+            tabBarActiveTintColor: COLORS.teal,
+            tabBarInactiveTintColor: COLORS.cream,
+            tabBarStyle: {
+              backgroundColor: COLORS.navy,
+              borderTopColor: COLORS.blue,
+              borderTopWidth: 2,
+              height: 60,
+              paddingBottom: 8,
+            },
             tabBarLabelStyle: {
               fontSize: 12,
+              fontWeight: '600',
             },
             headerShown: false,
           })}>
@@ -97,23 +98,26 @@ function App(): React.JSX.Element {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.darkBg,
   },
   container: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
+    backgroundColor: COLORS.darkBg,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 10,
+    color: COLORS.lightText,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: COLORS.cream,
     textAlign: 'center',
   },
 });

@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
+import {COLORS} from '../theme/colors';
 import {saveAnxietyEntry} from '../services/storageService';
 
 const QUICK_LEVELS = [
@@ -32,11 +33,11 @@ interface AnxietyTrackerProps {
   onSave?: () => Promise<void>;
 }
 
-export const AnxietyTracker: React.FC<AnxietyTrackerProps> = ({onSave}) => {
+const AnxietyTracker: React.FC<AnxietyTrackerProps> = ({onSave}) => {
   const [anxietyLevel, setAnxietyLevel] = useState(0);
   const [notes, setNotes] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleQuickLevel = (level: number) => {
     setAnxietyLevel(level);
@@ -47,35 +48,35 @@ export const AnxietyTracker: React.FC<AnxietyTrackerProps> = ({onSave}) => {
   };
 
   const handleSave = async () => {
-    if (anxietyLevel === 0 && !selectedCategory && !notes) {
-      Alert.alert('Empty Entry', 'Please add some information before saving.');
+    if (anxietyLevel === 0 && !selectedCategory && !notes.trim()) {
+      Alert.alert('Empty Entry', 'Please add some information about your anxiety level, trigger, or notes.');
       return;
     }
 
     try {
-      setSaving(true);
+      setIsSaving(true);
       await saveAnxietyEntry({
         level: anxietyLevel,
         category: selectedCategory,
-        notes,
+        notes: notes.trim(),
       });
       
-      // Reset form
+      // Reset form after successful save
       setAnxietyLevel(0);
       setSelectedCategory('');
       setNotes('');
       
-      Alert.alert('Success', 'Your anxiety entry has been saved.');
-      
-      // Call the onSave callback if provided
+      // Call the onSave callback to refresh entries in the parent component
       if (onSave) {
         await onSave();
       }
+      
+      Alert.alert('Success', 'Your anxiety entry has been saved.');
     } catch (error) {
       console.error('Error saving entry:', error);
-      Alert.alert('Error', 'Failed to save your entry. Please try again.');
+      Alert.alert('Error', 'There was a problem saving your entry. Please try again.');
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
   };
 
@@ -91,8 +92,8 @@ export const AnxietyTracker: React.FC<AnxietyTrackerProps> = ({onSave}) => {
           step={0.5}
           value={anxietyLevel}
           onValueChange={setAnxietyLevel}
-          minimumTrackTintColor="#4A90E2"
-          maximumTrackTintColor="#DEDEDE"
+          minimumTrackTintColor={COLORS.teal}
+          maximumTrackTintColor={COLORS.border}
         />
         <View style={styles.quickLevels}>
           {QUICK_LEVELS.map((level) => (
@@ -139,6 +140,7 @@ export const AnxietyTracker: React.FC<AnxietyTrackerProps> = ({onSave}) => {
         <TextInput
           style={styles.notesInput}
           placeholder="Add any notes about how you're feeling..."
+          placeholderTextColor={COLORS.cream}
           value={notes}
           onChangeText={setNotes}
           multiline
@@ -146,8 +148,16 @@ export const AnxietyTracker: React.FC<AnxietyTrackerProps> = ({onSave}) => {
         />
       </View>
 
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>Save Entry</Text>
+      <TouchableOpacity 
+        style={styles.saveButton}
+        onPress={handleSave}
+        disabled={isSaving}
+      >
+        {isSaving ? (
+          <ActivityIndicator color={COLORS.cream} />
+        ) : (
+          <Text style={styles.saveButtonText}>Save Entry</Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -156,34 +166,36 @@ export const AnxietyTracker: React.FC<AnxietyTrackerProps> = ({onSave}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.darkBg,
   },
   content: {
     padding: 20,
   },
   section: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 2,
+    borderColor: COLORS.border,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.lightText,
     marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   levelText: {
-    fontSize: 48,
+    fontSize: 56,
     fontWeight: 'bold',
-    color: '#4A90E2',
+    color: COLORS.teal,
     textAlign: 'center',
     marginVertical: 20,
+    textShadowColor: COLORS.blue,
+    textShadowOffset: {width: 2, height: 2},
+    textShadowRadius: 1,
   },
   slider: {
     height: 40,
@@ -197,17 +209,21 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 20,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: COLORS.navy,
+    borderWidth: 1,
+    borderColor: COLORS.blue,
   },
   quickButtonActive: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: COLORS.teal,
+    borderColor: COLORS.cream,
   },
   quickButtonText: {
     fontSize: 12,
-    color: '#666',
+    color: COLORS.cream,
   },
   quickButtonTextActive: {
-    color: 'white',
+    color: COLORS.lightText,
+    fontWeight: 'bold',
   },
   categories: {
     flexDirection: 'row',
@@ -218,39 +234,49 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: COLORS.navy,
     marginRight: 8,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: COLORS.blue,
   },
   categoryButtonActive: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: COLORS.orange,
+    borderColor: COLORS.cream,
   },
   categoryButtonText: {
     fontSize: 14,
-    color: '#666',
+    color: COLORS.cream,
   },
   categoryButtonTextActive: {
-    color: 'white',
+    color: COLORS.lightText,
+    fontWeight: 'bold',
   },
   notesInput: {
     height: 100,
-    backgroundColor: '#F8F8F8',
+    backgroundColor: COLORS.navy,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: '#333',
+    color: COLORS.lightText,
+    borderWidth: 1,
+    borderColor: COLORS.blue,
   },
   saveButton: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: COLORS.teal,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     marginTop: 20,
+    borderWidth: 2,
+    borderColor: COLORS.cream,
   },
   saveButtonText: {
-    color: 'white',
-    fontSize: 16,
+    color: COLORS.lightText,
+    fontSize: 18,
     fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });
 
